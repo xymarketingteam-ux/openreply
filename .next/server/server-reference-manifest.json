@@ -1,0 +1,132 @@
+{
+  "node": {
+    "400f59f1fa9d13675ad16ef5698aca3ef4293abb03": {
+      "workers": {
+        "app/(dashboard)/automations/new/page": {
+          "moduleId": 98808,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/automations/page": {
+          "moduleId": 42453,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/campaigns/[id]/edit/page": {
+          "moduleId": 57665,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/campaigns/[id]/page": {
+          "moduleId": 86317,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/campaigns/import/page": {
+          "moduleId": 40710,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/campaigns/new/page": {
+          "moduleId": 84800,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/campaigns/page": {
+          "moduleId": 40932,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/dashboard/page": {
+          "moduleId": 4303,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/diagnostics/page": {
+          "moduleId": 77461,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/inbox/page": {
+          "moduleId": 78451,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/integrations/page": {
+          "moduleId": 60593,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/logs/page": {
+          "moduleId": 92951,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/overview/page": {
+          "moduleId": 43455,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 7131,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/invite/[token]/page": {
+          "moduleId": 42113,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/login/page": {
+          "moduleId": 39681,
+          "async": true,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/reports/[shareSlug]/page": {
+          "moduleId": 622,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        },
+        "app/verify-request/page": {
+          "moduleId": 84411,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        }
+      },
+      "filename": "lib/i18n/actions.ts",
+      "exportedName": "setLocale"
+    },
+    "60a68e615247bc8df98704919f5e0cf04a233e0248": {
+      "workers": {
+        "app/login/page": {
+          "moduleId": 39681,
+          "async": true,
+          "exportedName": "$$RSC_SERVER_ACTION_0",
+          "filename": "app/login/page.tsx"
+        }
+      },
+      "filename": "app/login/page.tsx",
+      "exportedName": "$$RSC_SERVER_ACTION_0"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "RzLykuclyLOUxZMMZb0eIyD0JK8loF1/egpzorWM+IA="
+}

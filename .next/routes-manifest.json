@@ -1,0 +1,448 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/auth/[...nextauth]",
+      "regex": "^/api/auth/(.+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPnextauth": "nxtPnextauth"
+      },
+      "namedRegex": "^/api/auth/(?<nxtPnextauth>.+?)(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/conversations/[id]",
+      "regex": "^/api/instagram/conversations/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/instagram/conversations/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/zernio/webhook/[workspaceId]",
+      "regex": "^/api/zernio/webhook/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPworkspaceId": "nxtPworkspaceId"
+      },
+      "namedRegex": "^/api/zernio/webhook/(?<nxtPworkspaceId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/campaigns/[id]",
+      "regex": "^/campaigns/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/campaigns/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/campaigns/[id]/edit",
+      "regex": "^/campaigns/([^/]+?)/edit(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/campaigns/(?<nxtPid>[^/]+?)/edit(?:/)?$"
+    },
+    {
+      "page": "/invite/[token]",
+      "regex": "^/invite/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPtoken": "nxtPtoken"
+      },
+      "namedRegex": "^/invite/(?<nxtPtoken>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/r/[slug]",
+      "regex": "^/r/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/r/(?<nxtPslug>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/reports/[shareSlug]",
+      "regex": "^/reports/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPshareSlug": "nxtPshareSlug"
+      },
+      "namedRegex": "^/reports/(?<nxtPshareSlug>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/templates/[slug]",
+      "regex": "^/templates/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/templates/(?<nxtPslug>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/api/admin/diagnostics",
+      "regex": "^/api/admin/diagnostics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/admin/diagnostics(?:/)?$"
+    },
+    {
+      "page": "/api/automations",
+      "regex": "^/api/automations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/automations(?:/)?$"
+    },
+    {
+      "page": "/api/automations/duplicate",
+      "regex": "^/api/automations/duplicate(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/automations/duplicate(?:/)?$"
+    },
+    {
+      "page": "/api/automations/import",
+      "regex": "^/api/automations/import(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/automations/import(?:/)?$"
+    },
+    {
+      "page": "/api/cron/attach-next-reel",
+      "regex": "^/api/cron/attach\\-next\\-reel(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/cron/attach\\-next\\-reel(?:/)?$"
+    },
+    {
+      "page": "/api/cron/refresh-tokens",
+      "regex": "^/api/cron/refresh\\-tokens(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/cron/refresh\\-tokens(?:/)?$"
+    },
+    {
+      "page": "/api/cron/snapshot-followers",
+      "regex": "^/api/cron/snapshot\\-followers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/cron/snapshot\\-followers(?:/)?$"
+    },
+    {
+      "page": "/api/dashboard/stats",
+      "regex": "^/api/dashboard/stats(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/dashboard/stats(?:/)?$"
+    },
+    {
+      "page": "/api/health",
+      "regex": "^/api/health(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/health(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/accounts",
+      "regex": "^/api/instagram/accounts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/accounts(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/callback",
+      "regex": "^/api/instagram/callback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/callback(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/connect",
+      "regex": "^/api/instagram/connect(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/connect(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/conversations",
+      "regex": "^/api/instagram/conversations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/conversations(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/disconnect",
+      "regex": "^/api/instagram/disconnect(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/disconnect(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/overview",
+      "regex": "^/api/instagram/overview(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/overview(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/posts",
+      "regex": "^/api/instagram/posts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/posts(?:/)?$"
+    },
+    {
+      "page": "/api/instagram/profile",
+      "regex": "^/api/instagram/profile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/instagram/profile(?:/)?$"
+    },
+    {
+      "page": "/api/integrations/keys",
+      "regex": "^/api/integrations/keys(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/integrations/keys(?:/)?$"
+    },
+    {
+      "page": "/api/logs",
+      "regex": "^/api/logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/logs(?:/)?$"
+    },
+    {
+      "page": "/api/mcp",
+      "regex": "^/api/mcp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/mcp(?:/)?$"
+    },
+    {
+      "page": "/api/v1/campaigns",
+      "regex": "^/api/v1/campaigns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/v1/campaigns(?:/)?$"
+    },
+    {
+      "page": "/api/webhook",
+      "regex": "^/api/webhook(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/webhook(?:/)?$"
+    },
+    {
+      "page": "/api/workspace/invitations/accept",
+      "regex": "^/api/workspace/invitations/accept(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/workspace/invitations/accept(?:/)?$"
+    },
+    {
+      "page": "/api/workspace/members",
+      "regex": "^/api/workspace/members(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/workspace/members(?:/)?$"
+    },
+    {
+      "page": "/api/zernio/accounts",
+      "regex": "^/api/zernio/accounts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/zernio/accounts(?:/)?$"
+    },
+    {
+      "page": "/api/zernio/connect",
+      "regex": "^/api/zernio/connect(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/zernio/connect(?:/)?$"
+    },
+    {
+      "page": "/api/zernio/settings",
+      "regex": "^/api/zernio/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/zernio/settings(?:/)?$"
+    },
+    {
+      "page": "/automations",
+      "regex": "^/automations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/automations(?:/)?$"
+    },
+    {
+      "page": "/automations/new",
+      "regex": "^/automations/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/automations/new(?:/)?$"
+    },
+    {
+      "page": "/campaigns",
+      "regex": "^/campaigns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/campaigns(?:/)?$"
+    },
+    {
+      "page": "/campaigns/import",
+      "regex": "^/campaigns/import(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/campaigns/import(?:/)?$"
+    },
+    {
+      "page": "/campaigns/new",
+      "regex": "^/campaigns/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/campaigns/new(?:/)?$"
+    },
+    {
+      "page": "/comment-link-automation",
+      "regex": "^/comment\\-link\\-automation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/comment\\-link\\-automation(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/data-deletion",
+      "regex": "^/data\\-deletion(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/data\\-deletion(?:/)?$"
+    },
+    {
+      "page": "/diagnostics",
+      "regex": "^/diagnostics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/diagnostics(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/inbox",
+      "regex": "^/inbox(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/inbox(?:/)?$"
+    },
+    {
+      "page": "/instagram-comment-to-dm-templates",
+      "regex": "^/instagram\\-comment\\-to\\-dm\\-templates(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/instagram\\-comment\\-to\\-dm\\-templates(?:/)?$"
+    },
+    {
+      "page": "/instagram-dm-automation-agencies",
+      "regex": "^/instagram\\-dm\\-automation\\-agencies(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/instagram\\-dm\\-automation\\-agencies(?:/)?$"
+    },
+    {
+      "page": "/integrations",
+      "regex": "^/integrations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/integrations(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/logs",
+      "regex": "^/logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/logs(?:/)?$"
+    },
+    {
+      "page": "/manifest.webmanifest",
+      "regex": "^/manifest\\.webmanifest(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/manifest\\.webmanifest(?:/)?$"
+    },
+    {
+      "page": "/manychat-alternative",
+      "regex": "^/manychat\\-alternative(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/manychat\\-alternative(?:/)?$"
+    },
+    {
+      "page": "/meta-review",
+      "regex": "^/meta\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/meta\\-review(?:/)?$"
+    },
+    {
+      "page": "/overview",
+      "regex": "^/overview(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/overview(?:/)?$"
+    },
+    {
+      "page": "/privacy",
+      "regex": "^/privacy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/privacy(?:/)?$"
+    },
+    {
+      "page": "/settings",
+      "regex": "^/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settings(?:/)?$"
+    },
+    {
+      "page": "/templates",
+      "regex": "^/templates(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/templates(?:/)?$"
+    },
+    {
+      "page": "/terms",
+      "regex": "^/terms(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/terms(?:/)?$"
+    },
+    {
+      "page": "/verify-request",
+      "regex": "^/verify\\-request(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/verify\\-request(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

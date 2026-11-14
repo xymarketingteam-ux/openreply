@@ -1,0 +1,3 @@
+{
+  "/api/zernio/webhook/[workspaceId]/route": "app/api/zernio/webhook/[workspaceId]/route.js"
+}

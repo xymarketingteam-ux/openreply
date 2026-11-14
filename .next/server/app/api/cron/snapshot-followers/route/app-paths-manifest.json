@@ -1,0 +1,3 @@
+{
+  "/api/cron/snapshot-followers/route": "app/api/cron/snapshot-followers/route.js"
+}

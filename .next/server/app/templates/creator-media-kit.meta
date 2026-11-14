@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/templates/layout,_N_T_/templates/[slug]/layout,_N_T_/templates/[slug]/page,_N_T_/templates/creator-media-kit"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/templates/$d$slug/__PAGE__",
+    "/templates/$d$slug",
+    "/templates",
+    "/_index",
+    "/_head"
+  ]
+}
