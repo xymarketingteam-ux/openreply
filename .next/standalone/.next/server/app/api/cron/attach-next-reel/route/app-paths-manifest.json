@@ -1,0 +1,3 @@
+{
+  "/api/cron/attach-next-reel/route": "app/api/cron/attach-next-reel/route.js"
+}

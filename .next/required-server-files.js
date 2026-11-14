@@ -96,6 +96,7 @@ self.__SERVER_FILES_MANIFEST={
     "compiler": {},
     "expireTime": 31536000,
     "staticPageGenerationTimeout": 60,
+    "output": "standalone",
     "modularizeImports": {
       "@mui/icons-material": {
         "transform": "@mui/icons-material/{{member}}"
@@ -104,7 +105,7 @@ self.__SERVER_FILES_MANIFEST={
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "__APP_DIR__",
+    "outputFileTracingRoot": ".",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -305,11 +306,11 @@ self.__SERVER_FILES_MANIFEST={
     "configFileName": "next.config.ts",
     "reactCompiler": true,
     "turbopack": {
-      "root": "__APP_DIR__"
+      "root": "."
     },
     "distDirRoot": ".next"
   },
-  "appDir": "__APP_DIR__",
+  "appDir": ".",
   "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",

@@ -1,0 +1,29 @@
+{
+  "node": {
+    "40b359c70d6dc65cf28a3ab2b28f1d0eadf89b687a": {
+      "workers": {
+        "app/login/page": {
+          "moduleId": 39681,
+          "async": true,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        }
+      },
+      "exportedName": "setLocale",
+      "filename": "lib/i18n/actions.ts"
+    },
+    "608fb414493e541260b3571c0521232617acf4104f": {
+      "workers": {
+        "app/login/page": {
+          "moduleId": 39681,
+          "async": true,
+          "exportedName": "$$RSC_SERVER_ACTION_0",
+          "filename": "app/login/page.tsx"
+        }
+      },
+      "exportedName": "$$RSC_SERVER_ACTION_0",
+      "filename": "app/login/page.tsx"
+    }
+  },
+  "edge": {}
+}

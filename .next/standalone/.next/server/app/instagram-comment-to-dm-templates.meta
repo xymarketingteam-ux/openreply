@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/instagram-comment-to-dm-templates/layout,_N_T_/instagram-comment-to-dm-templates/page,_N_T_/instagram-comment-to-dm-templates"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/instagram-comment-to-dm-templates/__PAGE__",
+    "/instagram-comment-to-dm-templates",
+    "/_index",
+    "/_head"
+  ]
+}

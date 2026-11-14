@@ -1,36 +1,62 @@
-// Run on the build machine AFTER `next build`. Makes the prebuilt .next folder
-// portable: Turbopack links some external packages (pg, @prisma/client) from
-// .next/node_modules to the build machine's node_modules with absolute paths.
-// Record them as relative links, drop the absolute ones, and blank the build
-// machine's path in required-server-files. scripts/hostinger-link.mjs restores
-// both on the server.
+// Run on the build machine AFTER `next build` (output: "standalone").
+// Hostinger's shared hosting cannot finish `next build` inside its 16-minute
+// build limit, so the app is compiled elsewhere and committed. This makes the
+// standalone server portable to the Linux server:
+//  - records which packages the standalone server needs, then deletes the
+//    build machine's copies (they include OS-specific binaries such as
+//    @img/sharp-win32-x64); scripts/hostinger-link.mjs copies the server's own;
+//  - records Turbopack's links in .next/node_modules (absolute paths to this
+//    machine) and removes them;
+//  - replaces this machine's directory in server.js with __dirname.
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const nm = path.join(root, ".next", "node_modules");
+const sa = path.join(root, ".next", "standalone");
+const rootNm = path.join(root, "node_modules");
+if (!fs.existsSync(path.join(sa, "server.js")))
+  throw new Error("No .next/standalone/server.js: build with output 'standalone' first");
+
 const links = [];
-function walk(dir) {
+function collectLinks(dir, base) {
   if (!fs.existsSync(dir)) return;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isSymbolicLink()) {
-      const target = fs.realpathSync(p);
-      const pkg = path.relative(path.join(root, "node_modules"), target);
-      if (pkg.startsWith("..")) throw new Error(`Unexpected link target ${target}`);
-      links.push({ link: path.relative(root, p).split(path.sep).join("/"), pkg: pkg.split(path.sep).join("/") });
+      const pkg = path.relative(rootNm, fs.realpathSync(p)).split(path.sep).join("/");
+      if (pkg.startsWith("..")) throw new Error(`Unexpected link target for ${p}`);
+      if (base) links.push({ link: path.relative(base, p).split(path.sep).join("/"), pkg });
       fs.rmSync(p, { recursive: true, force: true });
-    } else if (e.isDirectory()) walk(p);
+    } else if (e.isDirectory()) collectLinks(p, base);
   }
 }
-walk(nm);
-fs.writeFileSync(path.join(root, ".next", "external-links.json"), JSON.stringify(links, null, 2));
+collectLinks(path.join(sa, ".next", "node_modules"), sa);
+collectLinks(path.join(root, ".next", "node_modules"), null);
 
-for (const f of ["required-server-files.json", "required-server-files.js"]) {
-  const p = path.join(root, ".next", f);
-  if (!fs.existsSync(p)) continue;
-  const text = fs.readFileSync(p, "utf8");
-  const escaped = JSON.stringify(root).slice(1, -1);
-  fs.writeFileSync(p, text.split(escaped).join("__APP_DIR__"));
+const saNm = path.join(sa, "node_modules");
+const packages = [];
+if (fs.existsSync(saNm)) {
+  for (const name of fs.readdirSync(saNm)) {
+    if (name.startsWith("@"))
+      for (const sub of fs.readdirSync(path.join(saNm, name))) packages.push(`${name}/${sub}`);
+    else packages.push(name);
+  }
+  fs.rmSync(saNm, { recursive: true, force: true });
 }
-console.log(`Recorded ${links.length} external links:`, links);
+// next build copies .env* into the standalone folder. Never commit secrets:
+// on Hostinger they come from the panel's environment variables.
+for (const f of fs.readdirSync(sa))
+  if (f.startsWith(".env")) fs.rmSync(path.join(sa, f), { force: true });
+// Copied on the server by hostinger-link.mjs; don't commit duplicates.
+fs.rmSync(path.join(sa, ".next", "static"), { recursive: true, force: true });
+fs.rmSync(path.join(sa, "public"), { recursive: true, force: true });
+
+const quoted = JSON.stringify(root); // "E:\...\openreply" exactly as in server.js
+const serverJs = path.join(sa, "server.js");
+fs.writeFileSync(serverJs, fs.readFileSync(serverJs, "utf8").split(quoted).join("__dirname"));
+for (const f of [path.join(sa, ".next", "required-server-files.json"), path.join(root, ".next", "required-server-files.json"), path.join(root, ".next", "required-server-files.js")]) {
+  if (fs.existsSync(f)) fs.writeFileSync(f, fs.readFileSync(f, "utf8").split(quoted).join('"."'));
+}
+
+fs.writeFileSync(path.join(root, ".next", "hostinger-manifest.json"), JSON.stringify({ links, packages }, null, 2));
+console.log(`Recorded ${links.length} links and ${packages.length} packages`);

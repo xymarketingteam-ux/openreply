@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/campaigns/import/page": "app/(dashboard)/campaigns/import/page.js"
+}

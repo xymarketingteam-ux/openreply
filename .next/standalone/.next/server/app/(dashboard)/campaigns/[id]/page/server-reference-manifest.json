@@ -1,0 +1,17 @@
+{
+  "node": {
+    "40b359c70d6dc65cf28a3ab2b28f1d0eadf89b687a": {
+      "workers": {
+        "app/(dashboard)/campaigns/[id]/page": {
+          "moduleId": 86317,
+          "async": false,
+          "exportedName": "setLocale",
+          "filename": "lib/i18n/actions.ts"
+        }
+      },
+      "exportedName": "setLocale",
+      "filename": "lib/i18n/actions.ts"
+    }
+  },
+  "edge": {}
+}

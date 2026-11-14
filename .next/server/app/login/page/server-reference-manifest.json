@@ -1,6 +1,6 @@
 {
   "node": {
-    "400f59f1fa9d13675ad16ef5698aca3ef4293abb03": {
+    "40b359c70d6dc65cf28a3ab2b28f1d0eadf89b687a": {
       "workers": {
         "app/login/page": {
           "moduleId": 39681,
@@ -12,7 +12,7 @@
       "exportedName": "setLocale",
       "filename": "lib/i18n/actions.ts"
     },
-    "60a68e615247bc8df98704919f5e0cf04a233e0248": {
+    "608fb414493e541260b3571c0521232617acf4104f": {
       "workers": {
         "app/login/page": {
           "moduleId": 39681,
