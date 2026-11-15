@@ -53,6 +53,15 @@ interface LoadedCampaign {
   publicReplyEnabled: boolean;
   publicReplyMessage: string | null;
   publicReplyMessages: string[];
+  languageChoiceEnabled?: boolean;
+  languagePromptMessage?: string | null;
+  englishButtonLabel?: string | null;
+  arabicButtonLabel?: string | null;
+  dmMessageAr?: string | null;
+  linkButtonLabelAr?: string | null;
+  followPromptMessageAr?: string | null;
+  followPromptButtonLabelAr?: string | null;
+  followUpMessageAr?: string | null;
   isActive: boolean;
   instagramAccountId: string;
   trackedLinks?: { destinationUrl: string; label?: string | null }[];
@@ -185,6 +194,18 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState(0);
 
+  // Language choice (English / Arabic buttons first, then that language).
+  const [languageChoiceEnabled, setLanguageChoiceEnabled] = useState(false);
+  const [languagePromptMessage, setLanguagePromptMessage] = useState("");
+  const [englishButtonLabel, setEnglishButtonLabel] = useState("English");
+  const [arabicButtonLabel, setArabicButtonLabel] = useState("العربية");
+  const [dmMessageAr, setDmMessageAr] = useState("");
+  const [linkButtonLabelAr, setLinkButtonLabelAr] = useState("");
+  const [followPromptMessageAr, setFollowPromptMessageAr] = useState("");
+  const [followPromptButtonLabelAr, setFollowPromptButtonLabelAr] =
+    useState("تابعت ✅");
+  const [followUpMessageAr, setFollowUpMessageAr] = useState("");
+
   const [previewTab, setPreviewTab] = useState<PreviewTab>("dm");
 
   // CSV import queue. When present, each save advances to the next row instead
@@ -293,6 +314,15 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         setFollowUpEnabled(c.followUpEnabled ?? false);
         setFollowUpMessage(c.followUpMessage ?? "");
         setFollowUpDelayMinutes(c.followUpDelayMinutes ?? 0);
+        setLanguageChoiceEnabled(c.languageChoiceEnabled ?? false);
+        setLanguagePromptMessage(c.languagePromptMessage ?? "");
+        setEnglishButtonLabel(c.englishButtonLabel ?? "English");
+        setArabicButtonLabel(c.arabicButtonLabel ?? "العربية");
+        setDmMessageAr(c.dmMessageAr ?? "");
+        setLinkButtonLabelAr(c.linkButtonLabelAr ?? "");
+        setFollowPromptMessageAr(c.followPromptMessageAr ?? "");
+        setFollowPromptButtonLabelAr(c.followPromptButtonLabelAr ?? "تابعت ✅");
+        setFollowUpMessageAr(c.followUpMessageAr ?? "");
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -433,6 +463,24 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
       followUpEnabled,
       followUpMessage: followUpEnabled ? followUpMessage.trim() : "",
       followUpDelayMinutes: followUpEnabled ? followUpDelayMinutes : 0,
+      languageChoiceEnabled,
+      languagePromptMessage: languageChoiceEnabled ? languagePromptMessage.trim() : "",
+      englishButtonLabel: languageChoiceEnabled
+        ? englishButtonLabel.trim() || "English"
+        : "",
+      arabicButtonLabel: languageChoiceEnabled
+        ? arabicButtonLabel.trim() || "العربية"
+        : "",
+      dmMessageAr: languageChoiceEnabled ? dmMessageAr.trim() : "",
+      linkButtonLabelAr: languageChoiceEnabled ? linkButtonLabelAr.trim() : "",
+      followPromptMessageAr:
+        languageChoiceEnabled && requireFollow ? followPromptMessageAr.trim() : "",
+      followPromptButtonLabelAr:
+        languageChoiceEnabled && requireFollow
+          ? followPromptButtonLabelAr.trim()
+          : "",
+      followUpMessageAr:
+        languageChoiceEnabled && followUpEnabled ? followUpMessageAr.trim() : "",
       isActive: activeValue,
     };
 
@@ -817,6 +865,50 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         <Section title={t("They will get")}>
           <div className="rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">
+                {t("a language choice first (English / العربية)")}
+              </span>
+              <Toggle
+                on={languageChoiceEnabled}
+                onToggle={() => setLanguageChoiceEnabled(!languageChoiceEnabled)}
+              />
+            </div>
+            {languageChoiceEnabled && (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={languagePromptMessage}
+                  onChange={(e) => setLanguagePromptMessage(e.target.value)}
+                  placeholder={"Please choose your language 👇\nيرجى اختيار اللغة 👇"}
+                  rows={2}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                  maxLength={640}
+                />
+                <div className="flex gap-2">
+                  <input
+                    value={englishButtonLabel}
+                    onChange={(e) => setEnglishButtonLabel(e.target.value)}
+                    placeholder="English"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
+                    maxLength={20}
+                  />
+                  <input
+                    value={arabicButtonLabel}
+                    onChange={(e) => setArabicButtonLabel(e.target.value)}
+                    placeholder="العربية"
+                    dir="rtl"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
+                    maxLength={20}
+                  />
+                </div>
+                <p className="text-xs text-muted">
+                  {t("Their first DM asks them to pick a language with two buttons. Everything after it (follow request, DM, follow-up) is sent in the language they pick. Empty Arabic boxes fall back to the English text.")}
+                </p>
+              </div>
+            )}
+          </div>
+          {!languageChoiceEnabled && (
+          <div className="mt-3 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-foreground">{t("an opening DM")}</span>
               <Toggle
                 on={openingDmEnabled}
@@ -843,6 +935,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
               </div>
             )}
           </div>
+          )}
           <div className="mt-3 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-foreground">
@@ -870,6 +963,26 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
                   maxLength={20}
                 />
+                {languageChoiceEnabled && (
+                  <div className="space-y-2 border-t border-border pt-2" dir="rtl">
+                    <span className="text-xs text-muted">العربية</span>
+                    <textarea
+                      value={followPromptMessageAr}
+                      onChange={(e) => setFollowPromptMessageAr(e.target.value)}
+                      placeholder="تابع حسابنا أولاً، ثم اضغط الزر بالأسفل 👇"
+                      rows={3}
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                      maxLength={1000}
+                    />
+                    <input
+                      value={followPromptButtonLabelAr}
+                      onChange={(e) => setFollowPromptButtonLabelAr(e.target.value)}
+                      placeholder="تابعت ✅"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
+                      maxLength={20}
+                    />
+                  </div>
+                )}
                 <p className="text-xs text-muted">
                   {t("We send the link only after they tap the button and Instagram confirms the follow. If it can't be verified, we send it anyway.")}
                 </p>
@@ -940,6 +1053,28 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                 {t("+ Add A Link")}
               </button>
             )}
+            {languageChoiceEnabled && (
+              <div className="space-y-2 border-t border-border pt-2" dir="rtl">
+                <span className="text-xs text-muted">العربية</span>
+                <textarea
+                  value={dmMessageAr}
+                  onChange={(e) => setDmMessageAr(e.target.value)}
+                  placeholder="اكتب الرسالة بالعربية"
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                  maxLength={1000}
+                />
+                {linkOpen && (
+                  <input
+                    value={linkButtonLabelAr}
+                    onChange={(e) => setLinkButtonLabelAr(e.target.value)}
+                    placeholder="افتح الرابط"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none"
+                    maxLength={20}
+                  />
+                )}
+              </div>
+            )}
             <p className="text-xs text-muted">
               {"{link}"} {t("inserts the tracked link;")} {"{username}"} {t("personalizes.")}
             </p>
@@ -964,6 +1099,17 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
                   maxLength={1000}
                 />
+                {languageChoiceEnabled && (
+                  <textarea
+                    value={followUpMessageAr}
+                    onChange={(e) => setFollowUpMessageAr(e.target.value)}
+                    placeholder="شكراً لمتابعتك 🙏"
+                    rows={3}
+                    dir="rtl"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none resize-none"
+                    maxLength={1000}
+                  />
+                )}
                 <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
                   <span className="text-xs text-muted">{t("Send it")}</span>
                   <input

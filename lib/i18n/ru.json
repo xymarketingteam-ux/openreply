@@ -468,5 +468,7 @@
   "{name} Campaign Report": "Отчёт по кампании «{name}»",
   "{type} post": "Пост {type}",
   "”": "»",
-  "← Campaigns": "← Кампании"
+  "← Campaigns": "← Кампании",
+  "a language choice first (English / العربية)": "сначала выбор языка (English / العربية)",
+  "Their first DM asks them to pick a language with two buttons. Everything after it (follow request, DM, follow-up) is sent in the language they pick. Empty Arabic boxes fall back to the English text.": "Первое сообщение просит выбрать язык двумя кнопками. Всё, что идёт дальше (просьба подписаться, сообщение, повторное сообщение), отправляется на выбранном языке. Пустые поля на арабском заменяются английским текстом."
 }

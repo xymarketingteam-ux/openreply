@@ -468,5 +468,7 @@
   "{name} Campaign Report": "{name} 活動報表",
   "{type} post": "{type} 貼文",
   "”": "」",
-  "← Campaigns": "← 返回活動列表"
+  "← Campaigns": "← 返回活動列表",
+  "a language choice first (English / العربية)": "先選擇語言（English / العربية）",
+  "Their first DM asks them to pick a language with two buttons. Everything after it (follow request, DM, follow-up) is sent in the language they pick. Empty Arabic boxes fall back to the English text.": "第一則私訊會用兩個按鈕請對方選擇語言。之後的所有訊息（追蹤請求、私訊、後續訊息）都會用對方選擇的語言傳送。阿拉伯文欄位留空時會改用英文內容。"
 }
