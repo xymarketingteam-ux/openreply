@@ -193,6 +193,9 @@ model Automation {
   goal           String?
   postId         String?
   postUrl        String?
+  // Every post a "specific post" campaign covers. postId above stays the first
+  // (primary) one, so code that shows a single thumbnail keeps working.
+  postIds        String[] @default([])
   pendingNextReel Boolean @default(false)
   matchAnyPost   Boolean @default(false)
   keywords       String[]
