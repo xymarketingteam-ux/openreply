@@ -80,6 +80,7 @@ export async function attachPendingNextReels(): Promise<AttachNextReelResult> {
         where: { id: automation.id },
         data: {
           postId: nextReel.id,
+          postIds: [nextReel.id],
           postUrl: nextReel.permalink ?? null,
           pendingNextReel: false,
         },

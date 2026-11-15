@@ -26,7 +26,8 @@ interface InstagramPost {
 }
 
 interface PostPickerProps {
-  selectedPostId: string | null;
+  /** Selected posts in pick order; a tap toggles a post in or out. */
+  selectedPostIds: string[];
   instagramAccountId?: string | null;
   /** postId -> name of the campaign already using it. Flagged in the grid. */
   usedPostIds?: Record<string, string>;
@@ -39,7 +40,7 @@ interface PostPickerProps {
 }
 
 export default function PostPicker({
-  selectedPostId,
+  selectedPostIds,
   instagramAccountId,
   usedPostIds,
   onSelect,
@@ -173,7 +174,8 @@ export default function PostPicker({
               the square thumbnails flatten into strips. */}
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-64 auto-rows-min content-start overflow-y-auto p-1">
             {visible.map((post) => {
-              const isSelected = selectedPostId === post.id;
+              const selectedIndex = selectedPostIds.indexOf(post.id);
+              const isSelected = selectedIndex !== -1;
               const usedByName = usedPostIds?.[post.id];
               const isUsed = Boolean(usedByName) && !isSelected;
               const thumb = post.thumbnail_url ?? post.media_url;
@@ -231,7 +233,9 @@ export default function PostPicker({
             )}
             {isSelected && (
               <span className="absolute bottom-0 inset-x-0 bg-accent text-white text-xs py-1">
-                {t("Selected")}
+                {selectedPostIds.length > 1
+                  ? `${selectedIndex + 1} · ${t("Selected")}`
+                  : t("Selected")}
               </span>
             )}
           </button>

@@ -136,3 +136,56 @@ describe("comment polling does not recreate unsafe sends", () => {
     },
   );
 });
+
+describe("comment polling covers every post of a multi-post campaign", () => {
+  const SECOND = "18011111111111111";
+
+  beforeEach(() => {
+    queueAdd.mockReset();
+    readComments.mockReset();
+    mockPrisma.operationalEvent.create.mockResolvedValue({});
+    mockPrisma.dmLog.findMany.mockResolvedValue([]);
+    // The second post was boosted: its ad copy must map back to it.
+    mockPrisma.$queryRaw.mockImplementation(async (strings: TemplateStringsArray, postId: string) =>
+      postId === SECOND ? [{ mediaId: AD }] : []
+    );
+    mockPrisma.automation.findMany.mockResolvedValue([
+      {
+        id: "campaign",
+        name: "Campaign",
+        workspaceId: "workspace",
+        postId: POST,
+        postIds: [POST, SECOND],
+        matchAnyWord: false,
+        keywords: ["AI"],
+        publicReplyEnabled: false,
+        instagramAccount: {
+          id: "connection",
+          instagramId: "owner",
+          provider: "META",
+          accessToken: "test",
+        },
+      },
+    ]);
+    readComments.mockImplementation(async ({ mediaId }: { mediaId: string }) => [
+      {
+        id: `comment-on-${mediaId}`,
+        text: "AI",
+        from: { id: `reader-${mediaId}` },
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  });
+
+  it("sweeps both posts and the ad copy, tagging the ad with its own post", async () => {
+    await reconcileComments();
+
+    const swept = readComments.mock.calls.map(([args]) => args.mediaId);
+    expect(swept).toEqual([POST, SECOND, AD]);
+
+    const jobs = queueAdd.mock.calls.map(([, data]) => data);
+    expect(jobs.map((j) => j.mediaId)).toEqual([POST, SECOND, AD]);
+    expect(jobs.find((j) => j.mediaId === AD)?.originalMediaId).toBe(SECOND);
+    expect(jobs.find((j) => j.mediaId === SECOND)?.originalMediaId).toBeUndefined();
+  });
+});

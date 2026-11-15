@@ -74,6 +74,7 @@ export async function reconcileComments(): Promise<void> {
       id: true,
       name: true,
       postId: true,
+      postIds: true,
       matchAnyPost: true,
       matchAnyWord: true,
       keywords: true,
@@ -125,6 +126,7 @@ async function sweepCampaign({
     id: string;
     name: string;
     postId: string | null;
+    postIds: string[];
     matchAnyPost: boolean;
     matchAnyWord: boolean;
     keywords: string[];
@@ -170,12 +172,28 @@ async function sweepCampaign({
     return stat;
   }
 
-  // Which media this campaign covers: its own post, or the recent feed if it
-  // matches any post.
+  // Which media this campaign covers: its own posts (and their ad copies), or
+  // the recent feed if it matches any post. sourcePost maps an ad's media id
+  // back to the post it was made from.
   const mediaIds: string[] = [];
-  if (automation.postId) {
-    mediaIds.push(automation.postId);
-    mediaIds.push(...(await adMediaFor(automation.postId)));
+  const sourcePost = new Map<string, string>();
+  const ownPosts = [
+    ...new Set(
+      [automation.postId, ...(automation.postIds ?? [])].filter(
+        (id): id is string => Boolean(id)
+      )
+    ),
+  ];
+  if (ownPosts.length > 0) {
+    for (const postId of ownPosts) {
+      mediaIds.push(postId);
+      sourcePost.set(postId, postId);
+      for (const adMediaId of await adMediaFor(postId)) {
+        if (sourcePost.has(adMediaId)) continue;
+        mediaIds.push(adMediaId);
+        sourcePost.set(adMediaId, postId);
+      }
+    }
   } else if (automation.matchAnyPost) {
     try {
       const media = await getUserMedia({
@@ -282,8 +300,8 @@ async function sweepCampaign({
         // drops the comment, so the sweep would enqueue it again every five
         // minutes and never deliver it.
         originalMediaId:
-          automation.postId && mediaId !== automation.postId
-            ? automation.postId
+          sourcePost.has(mediaId) && sourcePost.get(mediaId) !== mediaId
+            ? sourcePost.get(mediaId)
             : undefined,
         source: "POLLING",
       });
