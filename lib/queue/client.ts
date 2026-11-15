@@ -65,6 +65,8 @@ export interface ProcessFollowUpJob {
   userId: string;
   automationId: string;
   commenterName?: string | null;
+  // Language picked on a language-choice campaign; absent means English.
+  language?: "en" | "ar";
 }
 
 // An inbound DM from a user. Campaigns with `dmTriggerEnabled` whose keywords

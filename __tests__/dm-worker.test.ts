@@ -9,6 +9,8 @@ const {
   mockSendDirectMessageWithButton,
   mockSendDirectMessage,
   mockSendDirectMessageWithLinkButton,
+  mockSendPrivateReplyWithPostbackButtons,
+  mockSendDirectMessageWithPostbackButtons,
   mockDecryptToken,
   mockMatchKeywords,
   mockReserveDMSlot,
@@ -46,6 +48,8 @@ const {
   mockSendDirectMessageWithButton: vi.fn(),
   mockSendDirectMessage: vi.fn(),
   mockSendDirectMessageWithLinkButton: vi.fn(),
+  mockSendPrivateReplyWithPostbackButtons: vi.fn(),
+  mockSendDirectMessageWithPostbackButtons: vi.fn(),
   mockDecryptToken: vi.fn(),
   mockMatchKeywords: vi.fn(),
   mockReserveDMSlot: vi.fn(),
@@ -67,6 +71,8 @@ vi.mock("@/lib/meta/client", () => ({
   sendDirectMessageWithButton: mockSendDirectMessageWithButton,
   sendDirectMessage: mockSendDirectMessage,
   sendDirectMessageWithLinkButton: mockSendDirectMessageWithLinkButton,
+  sendPrivateReplyWithPostbackButtons: mockSendPrivateReplyWithPostbackButtons,
+  sendDirectMessageWithPostbackButtons: mockSendDirectMessageWithPostbackButtons,
   sendCommentReply: vi.fn(),
   MetaApiError: class MetaApiError extends Error {
     code: number;
@@ -1763,4 +1769,185 @@ it("retains the public reply claim if sending succeeded but its log write failed
   await process({ ...createMockJob(), id: "next-poll" });
   expect(sendCommentReply).toHaveBeenCalledTimes(1);
   expect(mockSendPrivateReply).toHaveBeenCalledTimes(1);
+});
+
+describe("DM Worker — language choice (English / Arabic)", () => {
+  const bilingual = {
+    ...mockAutomation,
+    languageChoiceEnabled: true,
+    languagePromptMessage: "Choose your language 👇",
+    englishButtonLabel: "English",
+    arabicButtonLabel: "العربية",
+    requireFollow: true,
+    followPromptMessage: "Follow us first, then tap 👇",
+    followPromptButtonLabel: "Following",
+    followPromptMessageAr: "تابعنا أولاً ثم اضغط 👇",
+    followPromptButtonLabelAr: "تابعت ✅",
+    dmMessage: "5k MOQ, 3 months production. Send your logo as PDF.",
+    dmMessageAr: "الحد الأدنى 5000 قطعة، الإنتاج 3 أشهر. أرسل شعارك PDF.",
+    followUpEnabled: true,
+    followUpMessage: "Thanks for following!",
+    followUpMessageAr: "شكراً لمتابعتك!",
+    followUpDelayMinutes: 0,
+    trackedLinks: [],
+  };
+
+  beforeEach(() => {
+    mockSendPrivateReplyWithPostbackButtons.mockResolvedValue({
+      recipient_id: "commenter_999",
+      message_id: "msg_lang",
+    });
+    mockSendDirectMessageWithPostbackButtons.mockResolvedValue({
+      recipient_id: "commenter_999",
+      message_id: "msg_lang_dm",
+    });
+  });
+
+  it("answers a comment with the two language buttons instead of the follow check", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([bilingual]);
+
+    await getProcessor()(createMockJob());
+
+    expect(mockSendPrivateReplyWithPostbackButtons).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "comment_555",
+      "Choose your language 👇",
+      [
+        { title: "English", payload: "lang:en:auto_789" },
+        { title: "العربية", payload: "lang:ar:auto_789" },
+      ]
+    );
+    // The follow gate runs on the tap, in the chosen language.
+    expect(mockGetUserFollowStatus).not.toHaveBeenCalled();
+    expect(mockSendPrivateReplyWithButton).not.toHaveBeenCalled();
+    expect(mockSendPrivateReply).not.toHaveBeenCalled();
+  });
+
+  it("sends the Arabic follow prompt with an Arabic follow-check payload to a non-follower", async () => {
+    mockPrisma.automation.findFirst.mockResolvedValue(bilingual);
+    mockGetUserFollowStatus.mockResolvedValue(false);
+
+    await getProcessor()(
+      createMockPostbackJob({
+        instagramAccountId: "ig_456",
+        userId: "commenter_999",
+        payload: "lang:ar:auto_789",
+        mid: "mid_lang_1",
+      })
+    );
+
+    expect(mockSendDirectMessageWithButton).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      "تابعنا أولاً ثم اضغط 👇",
+      "تابعت ✅",
+      "followcheck:auto_789:ar"
+    );
+    // A language tap is not a claim to follow: prompt now, no delayed re-check.
+    expect(mockQueueAdd).not.toHaveBeenCalled();
+    expect(mockSendDirectMessage).not.toHaveBeenCalled();
+  });
+
+  it("delivers the Arabic DM and schedules an Arabic follow-up once the follow is confirmed", async () => {
+    mockPrisma.automation.findFirst.mockResolvedValue(bilingual);
+    mockGetUserFollowStatus.mockResolvedValue(true);
+
+    await getProcessor()(
+      createMockPostbackJob({
+        instagramAccountId: "ig_456",
+        userId: "commenter_999",
+        payload: "followcheck:auto_789:ar",
+        mid: "mid_lang_2",
+      })
+    );
+
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      "الحد الأدنى 5000 قطعة، الإنتاج 3 أشهر. أرسل شعارك PDF."
+    );
+    expect(mockQueueAdd).toHaveBeenCalledWith(
+      "process-followup",
+      expect.objectContaining({ language: "ar", automationId: "auto_789" }),
+      expect.objectContaining({ jobId: "followup_auto_789_commenter_999" })
+    );
+  });
+
+  it("keeps the English texts for a follower who picked English", async () => {
+    mockPrisma.automation.findFirst.mockResolvedValue(bilingual);
+    mockGetUserFollowStatus.mockResolvedValue(true);
+
+    await getProcessor()(
+      createMockPostbackJob({
+        instagramAccountId: "ig_456",
+        userId: "commenter_999",
+        payload: "lang:en:auto_789",
+        mid: "mid_lang_3",
+      })
+    );
+
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      "5k MOQ, 3 months production. Send your logo as PDF."
+    );
+  });
+
+  it("sends the Arabic follow-up text", async () => {
+    mockPrisma.automation.findFirst.mockResolvedValue(bilingual);
+
+    await getProcessor()({
+      name: "process-followup",
+      data: {
+        instagramAccountId: "ig_456",
+        userId: "commenter_999",
+        automationId: "auto_789",
+        commenterName: "commenter_user",
+        language: "ar",
+      },
+      id: "followup_job",
+      attemptsMade: 0,
+    });
+
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      "شكراً لمتابعتك!"
+    );
+  });
+
+  it("asks for the language when the keyword arrives by DM", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([
+      { ...bilingual, dmTriggerEnabled: true },
+    ]);
+
+    await getProcessor()({
+      name: "process-message",
+      data: {
+        instagramAccountId: "ig_456",
+        messageId: "mid_dm_1",
+        messageText: "PRICE",
+        senderId: "commenter_999",
+      },
+      id: "message_job",
+      attemptsMade: 0,
+    });
+
+    expect(mockSendDirectMessageWithPostbackButtons).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      "Choose your language 👇",
+      [
+        { title: "English", payload: "lang:en:auto_789" },
+        { title: "العربية", payload: "lang:ar:auto_789" },
+      ]
+    );
+    expect(mockGetUserFollowStatus).not.toHaveBeenCalled();
+  });
 });

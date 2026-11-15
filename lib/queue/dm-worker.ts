@@ -30,10 +30,18 @@ import {
   sendDirectMessage,
   sendDirectMessageWithButton,
   sendDirectMessageWithLinkButton,
+  sendDirectMessageWithPostbackButtons,
   sendPrivateReply,
   sendPrivateReplyWithButton,
   sendPrivateReplyWithLinkButton,
+  sendPrivateReplyWithPostbackButtons,
 } from "@/lib/instagram/provider";
+import {
+  buildLanguageChoice,
+  localizeCampaign,
+  parsePostbackPayload,
+  withLanguage,
+} from "@/lib/campaigns/language";
 import {
   createInstagramContext,
   hasInstagramCredentials,
@@ -627,7 +635,13 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     // With an opening DM, the private reply is a button message; tapping it
     // fires a postback that delivers the reveal (see processPostback). Without
     // one, we send the reveal text directly as today.
+    //
+    // A language-choice campaign replaces the opening DM with a two-button
+    // "choose your language" DM; the follow gate then runs on that tap, in the
+    // chosen language (see processPostback).
+    const useLanguageChoice = automation.languageChoiceEnabled;
     const useOpeningDm =
+      !useLanguageChoice &&
       automation.openingDmEnabled &&
       Boolean(automation.openingDmMessage) &&
       Boolean(automation.openingDmButtonLabel);
@@ -638,7 +652,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     // status at comment time: confirmed followers get the link now, everyone
     // else gets the "follow me first" prompt (re-verified on tap).
     let sendFollowPrompt = false;
-    if (automation.requireFollow && !useOpeningDm) {
+    if (automation.requireFollow && !useOpeningDm && !useLanguageChoice) {
       const alreadyFollows = await getUserFollowStatus({
         context: accessToken,
         recipientId: commenterId,
@@ -664,7 +678,20 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     }
     let delivered = false;
     try {
-      if (useOpeningDm) {
+      if (useLanguageChoice) {
+        const choice = buildLanguageChoice(automation);
+        await sendPrivateReplyWithPostbackButtons({
+          context: accessToken,
+          instagramAccountId: automation.instagramAccount.instagramId,
+          commentId: commentId,
+          text: renderMessageWithoutLink({
+            message: choice.text,
+            commenterName,
+          }),
+          buttons: choice.buttons,
+          postId: mediaId,
+        });
+      } else if (useOpeningDm) {
         const openingText = renderMessageWithTracking({
           message: automation.openingDmMessage as string,
           commenterName,
@@ -889,14 +916,12 @@ async function sendFollowRecheckAck({
 async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
   const { instagramAccountId, userId, payload, fallback } = job.data;
 
-  const isFollowCheck = payload.startsWith("followcheck:");
-  if (!isFollowCheck && !payload.startsWith("reveal:")) return;
   // The opening DM's button appends ":open" to the payload; the follow
-  // prompt's button does not. Automation ids are cuids and contain no colon.
-  const [automationId, marker] = payload
-    .slice(isFollowCheck ? "followcheck:".length : "reveal:".length)
-    .split(":");
-  const fromOpeningDm = marker === "open";
+  // prompt's button does not. A language-choice campaign adds ":ar" when the
+  // person picked Arabic, and its language buttons send "lang:<code>:<id>".
+  const parsed = parsePostbackPayload(payload);
+  if (!parsed) return;
+  const { automationId, fromOpeningDm, language } = parsed;
 
   const automation = await prisma.automation.findFirst({
     where: { id: automationId, isActive: true, ...connectionScope(job.data) },
@@ -917,6 +942,13 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
   ) {
     return;
   }
+
+  // A language tap on a follow-gated campaign is the gate's first check, the
+  // same as tapping an opening DM whose button routes into the follow check.
+  const isFollowCheck =
+    parsed.kind === "followcheck" ||
+    (parsed.kind === "lang" && automation.requireFollow);
+  const texts = localizeCampaign(automation, language);
 
   // Duplicate sends are enabled: every button tap re-sends the reveal
   // instead of only firing once per person.
@@ -1053,7 +1085,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
 
       const promptText = renderMessageWithoutLink({
         message:
-          automation.followPromptMessage ||
+          texts.followPromptMessage ||
           "quick favor before i send your link. i don't make any money from this, it's free. if you want to support me, just don't unfollow after, and star the repo on github if it helps you. tap the button once you're following and i'll send it over",
         commenterName,
       });
@@ -1066,9 +1098,8 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
               instagramAccountId: automation.instagramAccount.instagramId,
               userId: userId,
               text: promptText,
-              buttonTitle:
-                automation.followPromptButtonLabel || "i'm following",
-              payload: `followcheck:${automation.id}`,
+              buttonTitle: texts.followPromptButtonLabel || "i'm following",
+              payload: withLanguage(`followcheck:${automation.id}`, language),
             }),
         });
       } catch (error) {
@@ -1112,7 +1143,11 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
       send: () =>
         sendRevealDirectMessage({
           accessToken: accessToken,
-          automation: automation,
+          automation: {
+            ...automation,
+            dmMessage: texts.dmMessage,
+            linkButtonLabel: texts.linkButtonLabel,
+          },
           userId: userId,
           commenterName: commenterName,
           context: "postback",
@@ -1129,7 +1164,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
     // short thank-you. It is scheduled as its own delayed job so it can go out
     // some minutes later (followUpDelayMinutes) rather than immediately. The
     // deterministic job id dedupes repeat button taps to one follow-up per user.
-    if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
+    if (automation.followUpEnabled && texts.followUpMessage?.trim()) {
       const delayMs =
         Math.max(0, automation.followUpDelayMinutes ?? 0) * 60_000;
       await getDMQueue().add(
@@ -1140,6 +1175,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
           userId,
           automationId: automation.id,
           commenterName,
+          language,
         },
         {
           delay: delayMs,
@@ -1225,16 +1261,20 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
  */
 async function processFollowUp(job: Job<ProcessFollowUpJob>): Promise<void> {
   const { instagramAccountId, userId, automationId, commenterName } = job.data;
+  const language = job.data.language ?? "en";
 
   const automation = await prisma.automation.findFirst({
     where: { id: automationId, isActive: true, ...connectionScope(job.data) },
     include: { instagramAccount: true },
   });
 
+  const followUpMessage = automation
+    ? localizeCampaign(automation, language).followUpMessage
+    : null;
   if (
     !automation ||
     !automation.followUpEnabled ||
-    !automation.followUpMessage?.trim() ||
+    !followUpMessage?.trim() ||
     automation.instagramAccount.instagramId !== instagramAccountId ||
     !hasInstagramCredentials(automation.instagramAccount)
   ) {
@@ -1257,7 +1297,7 @@ async function processFollowUp(job: Job<ProcessFollowUpJob>): Promise<void> {
       instagramAccountId: automation.instagramAccount.instagramId,
       userId: userId,
       message: renderMessageWithoutLink({
-        message: automation.followUpMessage,
+        message: followUpMessage,
         commenterName: commenterName ?? null,
       }),
     });
@@ -1403,8 +1443,12 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
     // postback path's fail-open one. Fail-open is only safe after a tap, where
     // the user has already claimed to follow; here it would hand the link to
     // anyone whose status the API happens not to resolve.
+    //
+    // A language-choice campaign asks for the language first; the follow gate
+    // then runs on that tap, in the chosen language.
+    const sendLanguageChoice = automation.languageChoiceEnabled;
     let sendFollowPrompt = false;
-    if (automation.requireFollow) {
+    if (automation.requireFollow && !sendLanguageChoice) {
       const follows = await getUserFollowStatus({
         context: accessToken,
         recipientId: senderId,
@@ -1438,7 +1482,19 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
     }
 
     try {
-      if (sendFollowPrompt) {
+      if (sendLanguageChoice) {
+        const choice = buildLanguageChoice(automation);
+        await sendDirectMessageWithPostbackButtons({
+          context: accessToken,
+          instagramAccountId: automation.instagramAccount.instagramId,
+          userId: senderId,
+          text: renderMessageWithoutLink({
+            message: choice.text,
+            commenterName,
+          }),
+          buttons: choice.buttons,
+        });
+      } else if (sendFollowPrompt) {
         const promptText = renderMessageWithoutLink({
           message:
             automation.followPromptMessage ||

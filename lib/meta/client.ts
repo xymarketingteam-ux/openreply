@@ -275,6 +275,94 @@ export async function sendDirectMessageWithButton(
   return handleResponse(response);
 }
 
+export interface PostbackButton {
+  title: string;
+  payload: string;
+}
+
+function toPostbackButtons(buttons: PostbackButton[]) {
+  // A button template holds at most 3 buttons; titles are capped at 20 chars.
+  return buttons.slice(0, 3).map(({ title, payload }) => ({
+    type: "postback",
+    title: title.slice(0, 20),
+    payload,
+  }));
+}
+
+/**
+ * Send a private reply to a comment as a button template with several postback
+ * buttons — used to let the commenter pick a language. Each tap fires a
+ * `messaging_postbacks` webhook carrying that button's `payload`.
+ */
+export async function sendPrivateReplyWithPostbackButtons(
+  accessToken: string,
+  instagramAccountId: string,
+  commentId: string,
+  text: string,
+  buttons: PostbackButton[]
+): Promise<{ recipient_id: string; message_id: string }> {
+  const response = await fetch(
+    `${instagramGraphBase()}/${instagramAccountId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        recipient: { comment_id: commentId },
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: text.slice(0, 640),
+              buttons: toPostbackButtons(buttons),
+            },
+          },
+        },
+      }),
+    }
+  );
+
+  return handleResponse(response);
+}
+
+/** Direct-message counterpart of sendPrivateReplyWithPostbackButtons. */
+export async function sendDirectMessageWithPostbackButtons(
+  accessToken: string,
+  instagramAccountId: string,
+  userId: string,
+  text: string,
+  buttons: PostbackButton[]
+): Promise<{ recipient_id: string; message_id: string }> {
+  const response = await fetch(
+    `${instagramGraphBase()}/${instagramAccountId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        recipient: { id: userId },
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: text.slice(0, 640),
+              buttons: toPostbackButtons(buttons),
+            },
+          },
+        },
+      }),
+    }
+  );
+
+  return handleResponse(response);
+}
+
 /**
  * Check whether a user (by their IGSID) follows the business account, via the
  * Instagram Messaging profile API. Available for users in an active

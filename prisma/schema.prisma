@@ -217,6 +217,19 @@ model Automation {
   publicReplyEnabled Boolean @default(false)
   publicReplyMessage String?
   publicReplyMessages String[] @default([])
+  // Language choice: the first DM asks the person to pick English or Arabic
+  // with two buttons, and every later message (follow prompt, link DM,
+  // follow-up) is sent in the language they picked. The Arabic texts below
+  // fall back to the English ones when left empty.
+  languageChoiceEnabled     Boolean @default(false)
+  languagePromptMessage     String?
+  englishButtonLabel        String?
+  arabicButtonLabel         String?
+  dmMessageAr               String?
+  linkButtonLabelAr         String?
+  followPromptMessageAr     String?
+  followPromptButtonLabelAr String?
+  followUpMessageAr         String?
   isActive       Boolean @default(true)
   wholeWordMatch Boolean @default(true)
   reportShareSlug    String? @unique

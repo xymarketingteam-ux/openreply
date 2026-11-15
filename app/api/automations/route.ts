@@ -67,6 +67,16 @@ const createAutomationSchema = z
       .optional()
       .nullable(),
     secondaryButtonLabel: z.string().max(20).optional().nullable(),
+    // Language choice: English / Arabic buttons, then the chosen language.
+    languageChoiceEnabled: z.boolean().optional().default(false),
+    languagePromptMessage: z.string().max(640).optional().nullable(),
+    englishButtonLabel: z.string().max(20).optional().nullable(),
+    arabicButtonLabel: z.string().max(20).optional().nullable(),
+    dmMessageAr: z.string().max(1000).optional().nullable(),
+    linkButtonLabelAr: z.string().max(20).optional().nullable(),
+    followPromptMessageAr: z.string().max(1000).optional().nullable(),
+    followPromptButtonLabelAr: z.string().max(20).optional().nullable(),
+    followUpMessageAr: z.string().max(1000).optional().nullable(),
     isActive: z.boolean().optional().default(true),
     wholeWordMatch: z.boolean().optional().default(true),
   })
@@ -117,6 +127,15 @@ const updateAutomationSchema = z.object({
   isActive: z.boolean().optional(),
   wholeWordMatch: z.boolean().optional(),
   reportShareEnabled: z.boolean().optional(),
+  languageChoiceEnabled: z.boolean().optional(),
+  languagePromptMessage: z.string().max(640).optional().nullable(),
+  englishButtonLabel: z.string().max(20).optional().nullable(),
+  arabicButtonLabel: z.string().max(20).optional().nullable(),
+  dmMessageAr: z.string().max(1000).optional().nullable(),
+  linkButtonLabelAr: z.string().max(20).optional().nullable(),
+  followPromptMessageAr: z.string().max(1000).optional().nullable(),
+  followPromptButtonLabelAr: z.string().max(20).optional().nullable(),
+  followUpMessageAr: z.string().max(1000).optional().nullable(),
   // Empty string clears the tracked link; a URL updates/creates it; undefined
   // leaves it unchanged.
   trackedDestinationUrl: z
@@ -358,8 +377,13 @@ export async function POST(request: NextRequest) {
     secondaryLabel: parsed.data.secondaryButtonLabel,
   });
 
-  const { pendingNextReel, matchAnyPost, matchAnyWord, openingDmEnabled } =
+  const { pendingNextReel, matchAnyPost, matchAnyWord, languageChoiceEnabled } =
     parsed.data;
+  // The language-choice DM takes the opening DM's place, so the two never run
+  // together.
+  const openingDmEnabled = parsed.data.openingDmEnabled && !languageChoiceEnabled;
+  const blankToNull = (value: string | null | undefined) =>
+    value?.trim() ? value : null;
   // A post is only stored for the "specific post" trigger.
   const isSpecificPost = !pendingNextReel && !matchAnyPost;
   const publicReplyList = (
@@ -414,6 +438,34 @@ export async function POST(request: NextRequest) {
       publicReplyMessage: parsed.data.publicReplyEnabled
         ? publicReplyList[0] ?? parsed.data.publicReplyMessage ?? null
         : null,
+      languageChoiceEnabled,
+      languagePromptMessage: languageChoiceEnabled
+        ? blankToNull(parsed.data.languagePromptMessage)
+        : null,
+      englishButtonLabel: languageChoiceEnabled
+        ? blankToNull(parsed.data.englishButtonLabel)
+        : null,
+      arabicButtonLabel: languageChoiceEnabled
+        ? blankToNull(parsed.data.arabicButtonLabel)
+        : null,
+      dmMessageAr: languageChoiceEnabled
+        ? blankToNull(parsed.data.dmMessageAr)
+        : null,
+      linkButtonLabelAr: languageChoiceEnabled
+        ? blankToNull(parsed.data.linkButtonLabelAr)
+        : null,
+      followPromptMessageAr:
+        languageChoiceEnabled && parsed.data.requireFollow
+          ? blankToNull(parsed.data.followPromptMessageAr)
+          : null,
+      followPromptButtonLabelAr:
+        languageChoiceEnabled && parsed.data.requireFollow
+          ? blankToNull(parsed.data.followPromptButtonLabelAr)
+          : null,
+      followUpMessageAr:
+        languageChoiceEnabled && parsed.data.followUpEnabled
+          ? blankToNull(parsed.data.followUpMessageAr)
+          : null,
       isActive: parsed.data.isActive,
       wholeWordMatch: parsed.data.wholeWordMatch,
       workspaceId,
@@ -512,17 +564,34 @@ export async function PATCH(request: NextRequest) {
   // Keep dependent fields consistent: any-word clears keywords; a disabled
   // opening DM clears its message and button.
   if (automationData.matchAnyWord === true) automationData.keywords = [];
+  // The language-choice DM replaces the opening DM.
+  if (automationData.languageChoiceEnabled === true) {
+    automationData.openingDmEnabled = false;
+  }
   if (automationData.openingDmEnabled === false) {
     automationData.openingDmMessage = null;
     automationData.openingDmButtonLabel = null;
   }
+  if (automationData.languageChoiceEnabled === false) {
+    automationData.languagePromptMessage = null;
+    automationData.englishButtonLabel = null;
+    automationData.arabicButtonLabel = null;
+    automationData.dmMessageAr = null;
+    automationData.linkButtonLabelAr = null;
+    automationData.followPromptMessageAr = null;
+    automationData.followPromptButtonLabelAr = null;
+    automationData.followUpMessageAr = null;
+  }
   if (automationData.requireFollow === false) {
     automationData.followPromptMessage = null;
     automationData.followPromptButtonLabel = null;
+    automationData.followPromptMessageAr = null;
+    automationData.followPromptButtonLabelAr = null;
   }
   if (automationData.followUpEnabled === false) {
     automationData.followUpMessage = null;
     automationData.followUpDelayMinutes = 0;
+    automationData.followUpMessageAr = null;
   }
   // Any-post / next-reel campaigns carry no specific post.
   if (automationData.matchAnyPost === true || automationData.pendingNextReel === true) {
