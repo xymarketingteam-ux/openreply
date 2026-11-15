@@ -285,6 +285,134 @@ function connectionScope(data: DmQueueJob) {
   return data.accountConnectionId ? { instagramAccountId: data.accountConnectionId } : {};
 }
 
+export const OLD_COMMENT_NOTE =
+  "No DM: the comment is older than 7 days, past Instagram's private-reply window. The message was posted as a public reply instead.";
+
+/**
+ * The text an old comment gets as a public reply: the campaign's DM message
+ * (plus its Arabic version when it differs), addressed with an @mention so the
+ * commenter is notified.
+ */
+export function oldCommentReplyText(
+  automation: {
+    dmMessage: string;
+    dmMessageAr?: string | null;
+    trackedLinks?: { slug: string; label?: string | null; destinationUrl: string }[];
+  },
+  commenterName?: string | null
+): string {
+  const arabic = automation.dmMessageAr?.trim();
+  const message =
+    arabic && arabic !== automation.dmMessage.trim()
+      ? `${automation.dmMessage}\n\n${arabic}`
+      : automation.dmMessage;
+  return renderMessageWithTracking({
+    message,
+    commenterName: commenterName ? `@${commenterName}` : null,
+    trackedLinks: automation.trackedLinks,
+  });
+}
+
+/**
+ * Answer a comment that is too old for a DM by posting the campaign's DM text
+ * as a public reply. Runs once per comment: a SENT DM, a posted reply or an
+ * uncertain earlier attempt all stop it, and the "public" delivery claim makes
+ * concurrent jobs safe.
+ */
+async function answerOldCommentPublicly({
+  job,
+  automation,
+  existingLog,
+  matchedKeyword,
+}: {
+  job: Job<ProcessCommentJob>;
+  automation: Parameters<typeof oldCommentReplyText>[0] & {
+    id: string;
+    workspaceId: string;
+    instagramAccountId: string;
+    instagramAccount: Parameters<typeof createInstagramContext>[0] &
+      Parameters<typeof hasInstagramCredentials>[0];
+  };
+  existingLog: {
+    status: string;
+    publicReplySentAt: Date | null;
+    publicReplyDeliveryUnconfirmed: boolean;
+  } | null;
+  matchedKeyword: string | null;
+}): Promise<void> {
+  const { commentId, commenterId, commenterName, commentText, mediaId } = job.data;
+  if (
+    existingLog?.status === "SENT" ||
+    existingLog?.publicReplySentAt ||
+    existingLog?.publicReplyDeliveryUnconfirmed
+  ) {
+    return;
+  }
+  if (!hasInstagramCredentials(automation.instagramAccount)) return;
+
+  let context: InstagramContext;
+  try {
+    context = await createInstagramContext(
+      automation.instagramAccount,
+      `${job.id}:${automation.id}`
+    );
+  } catch {
+    return;
+  }
+
+  const where = {
+    automationId_commentId: { automationId: automation.id, commentId },
+  };
+  await prisma.dmLog.upsert({
+    where,
+    create: {
+      workspaceId: automation.workspaceId,
+      automationId: automation.id,
+      instagramAccountId: automation.instagramAccountId,
+      commenterId,
+      commenterName,
+      commentText,
+      commentId,
+      matchedKeyword,
+      status: "FAILED",
+      errorMessage: OLD_COMMENT_NOTE,
+    },
+    update: {},
+  });
+  if (!(await claimCommentDelivery(automation.id, commentId, "public"))) return;
+
+  try {
+    await sendCommentReply({
+      context,
+      commentId,
+      message: oldCommentReplyText(automation, commenterName),
+      postId: mediaId,
+    });
+    await prisma.dmLog.update({
+      where,
+      data: {
+        publicReplySentAt: new Date(),
+        publicReplyError: null,
+        publicReplyDeliveryUnconfirmed: false,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[DM Worker] Old-comment public reply failed:",
+      formatError(error)
+    );
+    await prisma.dmLog
+      .update({
+        where,
+        data: {
+          publicReplyError: formatError(classifySendError(error)),
+          publicReplyDeliveryUnconfirmed: !isConfirmedSendRejection(error),
+        },
+      })
+      .catch(() => {});
+  }
+}
+
 async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
   const {
     instagramAccountId,
@@ -357,6 +485,16 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
         },
       },
     });
+
+    if (job.data.publicOnly) {
+      await answerOldCommentPublicly({
+        job,
+        automation,
+        existingLog,
+        matchedKeyword: matchResult.matchedKeyword,
+      });
+      continue;
+    }
 
     if (existingLog?.status === "FAILED" && hasLegacyUnconfirmedDelivery(existingLog.errorMessage)) {
       await prisma.dmLog.update({

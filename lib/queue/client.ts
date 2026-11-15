@@ -34,6 +34,10 @@ export interface ProcessCommentJob {
   // from. Campaigns are bound to that post, so both ids have to be matched.
   originalMediaId?: string;
   requeueAttempt?: number;
+  // Set by the old-comment sweep: the comment is past Instagram's 7-day
+  // private-reply window, so no DM is possible. The campaign's DM text is
+  // posted as a public reply under the comment instead.
+  publicOnly?: boolean;
   // Which path enqueued this comment. It is not copied to ProcessedComment or
   // used for reconciliation dedup.
   source?: CommentSource;

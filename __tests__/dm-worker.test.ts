@@ -1957,3 +1957,70 @@ describe("DM Worker — language choice (English / Arabic)", () => {
     expect(mockGetUserFollowStatus).not.toHaveBeenCalled();
   });
 });
+
+describe("DM Worker — comments older than the 7-day DM window", () => {
+  const oldJob = () => createMockJob({ ...mockJobData, publicOnly: true });
+
+  it("posts the DM text as a public reply with an @mention and sends no DM", async () => {
+    const { sendCommentReply } = await import("@/lib/meta/client");
+    vi.mocked(sendCommentReply).mockReset().mockResolvedValue({ id: "public-reply" });
+    await getProcessor()(oldJob());
+
+    expect(sendCommentReply).toHaveBeenCalledTimes(1);
+    const [, commentId, message] = vi.mocked(sendCommentReply).mock.calls[0];
+    expect(commentId).toBe("comment_555");
+    expect(message).toBe("Hey @commenter_user! Here is the link: https://example.com");
+    expect(mockSendPrivateReply).not.toHaveBeenCalled();
+    expect(mockSendPrivateReplyWithLinkButton).not.toHaveBeenCalled();
+    expect(mockReserveDMSlot).not.toHaveBeenCalled();
+    expect(mockPrisma.dmLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ status: "FAILED", errorMessage: expect.stringContaining("older than 7 days") }),
+      })
+    );
+    expect(mockPrisma.dmLog.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ publicReplySentAt: expect.any(Date) }) })
+    );
+  });
+
+  it.each([
+    { status: "SENT", publicReplySentAt: null, publicReplyDeliveryUnconfirmed: false },
+    { status: "FAILED", publicReplySentAt: new Date(), publicReplyDeliveryUnconfirmed: false },
+    { status: "FAILED", publicReplySentAt: null, publicReplyDeliveryUnconfirmed: true },
+  ])("never answers the same old comment twice: %j", async (log) => {
+    const { sendCommentReply } = await import("@/lib/meta/client");
+    vi.mocked(sendCommentReply).mockReset();
+    mockPrisma.dmLog.findUnique.mockResolvedValue(log);
+    await getProcessor()(oldJob());
+    expect(sendCommentReply).not.toHaveBeenCalled();
+  });
+
+  it("does not post when another job already claimed the reply", async () => {
+    const { sendCommentReply } = await import("@/lib/meta/client");
+    vi.mocked(sendCommentReply).mockReset();
+    mockPrisma.dmLog.updateMany.mockResolvedValue({ count: 0 });
+    await getProcessor()(oldJob());
+    expect(sendCommentReply).not.toHaveBeenCalled();
+  });
+
+  it("records a refused reply so the sweep stops retrying it", async () => {
+    const { sendCommentReply } = await import("@/lib/meta/client");
+    vi.mocked(sendCommentReply).mockReset().mockRejectedValue(
+      new MetaApiError(100, undefined, undefined, "Comment not found")
+    );
+    await getProcessor()(oldJob());
+    expect(mockPrisma.dmLog.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ publicReplyError: expect.any(String) }) })
+    );
+  });
+});
+
+describe("oldCommentReplyText", () => {
+  it("adds the Arabic DM when it differs from the English one", async () => {
+    const { oldCommentReplyText } = await import("../lib/queue/dm-worker");
+    expect(
+      oldCommentReplyText({ dmMessage: "Hi {username}", dmMessageAr: "مرحبا {username}" }, "sam")
+    ).toBe("Hi @sam\n\nمرحبا @sam");
+    expect(oldCommentReplyText({ dmMessage: "Hi", dmMessageAr: " Hi " }, "sam")).toBe("Hi");
+  });
+});

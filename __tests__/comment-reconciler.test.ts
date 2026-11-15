@@ -5,7 +5,7 @@
  * at those media too or a webhook Meta never delivers is lost for good.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, queueAdd, readComments } = vi.hoisted(() => ({
   mockPrisma: {
@@ -34,6 +34,7 @@ vi.mock("@/lib/db/client", () => ({ prisma: mockPrisma }));
 import {
   adMediaFor,
   reconcileComments,
+  resetOldCommentSweepClock,
 } from "../lib/polling/comment-reconciler";
 
 const POST = "18023946917554990";
@@ -187,5 +188,88 @@ describe("comment polling covers every post of a multi-post campaign", () => {
     expect(jobs.map((j) => j.mediaId)).toEqual([POST, SECOND, AD]);
     expect(jobs.find((j) => j.mediaId === AD)?.originalMediaId).toBe(SECOND);
     expect(jobs.find((j) => j.mediaId === SECOND)?.originalMediaId).toBeUndefined();
+  });
+});
+
+describe("old-comment sweep (past the 7-day DM window)", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
+
+  beforeEach(() => {
+    process.env.COMMENT_OLD_REPLY_LOOKBACK_DAYS = "90";
+    process.env.COMMENT_OLD_REPLY_MAX_PER_SWEEP = "2";
+    process.env.COMMENT_OLD_REPLY_SPACING_MS = "20000";
+    resetOldCommentSweepClock();
+    queueAdd.mockReset();
+    readComments.mockReset();
+    mockPrisma.$queryRaw.mockResolvedValue([]);
+    mockPrisma.operationalEvent.create.mockResolvedValue({});
+    mockPrisma.dmLog.findMany.mockResolvedValue([]);
+    mockPrisma.automation.findMany.mockResolvedValue([
+      {
+        id: "campaign",
+        name: "Campaign",
+        workspaceId: "workspace",
+        postId: POST,
+        postIds: [POST],
+        matchAnyWord: true,
+        keywords: [],
+        publicReplyEnabled: true,
+        instagramAccount: { id: "connection", instagramId: "owner", provider: "META", accessToken: "test" },
+      },
+    ]);
+    readComments.mockImplementation(async ({ sinceMs }: { sinceMs: number }) =>
+      [
+        { id: "recent", text: "price", from: { id: "a" }, timestamp: ago(1) },
+        { id: "two-weeks", text: "price", from: { id: "b" }, timestamp: ago(14) },
+        { id: "month", text: "price", from: { id: "c" }, timestamp: ago(30) },
+        { id: "five-weeks", text: "price", from: { id: "d" }, timestamp: ago(35) },
+        {
+          id: "answered",
+          text: "price",
+          from: { id: "e" },
+          timestamp: ago(20),
+          replies: { data: [{ from: { id: "owner" } }] },
+        },
+      ].filter((c) => Date.parse(c.timestamp) >= sinceMs)
+    );
+  });
+
+  afterEach(() => {
+    delete process.env.COMMENT_OLD_REPLY_LOOKBACK_DAYS;
+    delete process.env.COMMENT_OLD_REPLY_MAX_PER_SWEEP;
+    delete process.env.COMMENT_OLD_REPLY_SPACING_MS;
+  });
+
+  it("queues old comments as public-only, oldest first, capped and spaced out", async () => {
+    await reconcileComments();
+    const calls = queueAdd.mock.calls;
+    const dm = calls.filter(([, data]) => !data.publicOnly).map(([, d]) => d.commentId);
+    const old = calls.filter(([, data]) => data.publicOnly);
+    expect(dm).toEqual(["recent"]);
+    expect(old.map(([, d]) => d.commentId)).toEqual(["five-weeks", "month"]);
+    expect(old.map(([, , opts]) => opts.delay)).toEqual([0, 20000]);
+  });
+
+  it("skips comments the account already answered or that were handled", async () => {
+    mockPrisma.dmLog.findMany.mockResolvedValue([
+      { commentId: "five-weeks", status: "FAILED", publicReplySentAt: new Date() },
+      { commentId: "month", status: "FAILED", publicReplyError: "Meta 100" },
+    ]);
+    await reconcileComments();
+    const old = queueAdd.mock.calls.filter(([, d]) => d.publicOnly).map(([, d]) => d.commentId);
+    expect(old).toEqual(["two-weeks"]);
+  });
+
+  it("runs the old sweep only once per interval", async () => {
+    await reconcileComments();
+    await reconcileComments();
+    expect(queueAdd.mock.calls.filter(([, d]) => d.publicOnly)).toHaveLength(2);
+  });
+
+  it("does nothing for old comments when it is not configured", async () => {
+    delete process.env.COMMENT_OLD_REPLY_LOOKBACK_DAYS;
+    await reconcileComments();
+    expect(queueAdd.mock.calls.filter(([, d]) => d.publicOnly)).toHaveLength(0);
   });
 });

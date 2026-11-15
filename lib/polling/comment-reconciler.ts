@@ -47,6 +47,27 @@ const LOOKBACK_HOURS = Number(process.env.COMMENT_POLL_LOOKBACK_HOURS ?? 72);
 // Hard cap on how many new comments a single campaign can enqueue per sweep, so
 // a viral post drains gradually instead of bursting into the comment API.
 const MAX_NEW_PER_SWEEP = Number(process.env.COMMENT_POLL_MAX_PER_SWEEP ?? 30);
+// Old-comment sweep: comments older than the DM window can no longer get a DM
+// (Instagram's private-reply limit is 7 days), so they get the campaign's DM
+// text as a public reply instead. Off unless COMMENT_OLD_REPLY_LOOKBACK_DAYS is
+// set. It runs less often than the DM sweep, takes only a few comments per run
+// and spaces the replies out, because a burst of public replies is what
+// Instagram's spam limiter (error 368) reacts to.
+function oldSweepConfig() {
+  return {
+    lookbackDays: Number(process.env.COMMENT_OLD_REPLY_LOOKBACK_DAYS ?? 0),
+    intervalMs: Number(
+      process.env.COMMENT_OLD_REPLY_INTERVAL_MS ?? 15 * 60_000
+    ),
+    maxPerSweep: Number(process.env.COMMENT_OLD_REPLY_MAX_PER_SWEEP ?? 10),
+    spacingMs: Number(process.env.COMMENT_OLD_REPLY_SPACING_MS ?? 20_000),
+  };
+}
+let lastOldSweepAt = 0;
+/** Test hook: let the next reconcileComments() run the old-comment sweep. */
+export function resetOldCommentSweepClock(): void {
+  lastOldSweepAt = 0;
+}
 // For "any post" campaigns, how many recent posts to scan.
 const RECENT_MEDIA_LIMIT = 10;
 
@@ -115,12 +136,40 @@ export async function reconcileComments(): Promise<void> {
     );
     await recordSweep(automation.workspaceId, stat);
   }
+
+  const old = oldSweepConfig();
+  if (old.lookbackDays <= 0) return;
+  const now = Date.now();
+  if (now - lastOldSweepAt < old.intervalMs) return;
+  lastOldSweepAt = now;
+  const oldSinceMs = now - old.lookbackDays * 24 * 60 * 60 * 1000;
+  if (oldSinceMs >= sinceMs) return;
+
+  for (const automation of automations) {
+    const stat = await sweepCampaign({
+      automation: automation,
+      sinceMs: oldSinceMs,
+      tokenCache: tokenCache,
+      oldBefore: { beforeMs: sinceMs, maxPerSweep: old.maxPerSweep, spacingMs: old.spacingMs },
+    }).catch(
+      (error): SweepStat => ({
+        campaign: automation.name,
+        keywords: automation.keywords.join(","),
+        matched: 0,
+        alreadyReplied: 0,
+        enqueued: 0,
+        errors: [errMessage(error)],
+      })
+    );
+    await recordSweep(automation.workspaceId, { ...stat, campaign: `${stat.campaign} (old comments)` });
+  }
 }
 
 async function sweepCampaign({
   automation,
   sinceMs,
   tokenCache,
+  oldBefore,
 }: {
   automation: {
     id: string;
@@ -144,6 +193,9 @@ async function sweepCampaign({
   };
   sinceMs: number;
   tokenCache: Map<string, InstagramContext | null>;
+  // Set for the old-comment sweep: only comments older than beforeMs (the DM
+  // window's start) are taken, and they are answered with a public reply.
+  oldBefore?: { beforeMs: number; maxPerSweep: number; spacingMs: number };
 }): Promise<SweepStat> {
   const account = automation.instagramAccount;
   const stat: SweepStat = {
@@ -227,6 +279,12 @@ async function sweepCampaign({
     const needsAction = comments.filter((c) => {
       const authorId = c.from?.id;
       if (!authorId || authorId === account.instagramId) return false;
+      if (
+        oldBefore &&
+        !(c.timestamp && Date.parse(c.timestamp) < oldBefore.beforeMs)
+      ) {
+        return false;
+      }
 
       const matched = automation.matchAnyWord
         ? true
@@ -263,10 +321,16 @@ async function sweepCampaign({
       select: {
         commentId: true, status: true, attempts: true, errorMessage: true,
         dmDeliveryUnconfirmed: true, publicReplySentAt: true,
-        publicReplyDeliveryUnconfirmed: true,
+        publicReplyDeliveryUnconfirmed: true, publicReplyError: true,
       },
     });
     const handledSet = new Set(logs.filter((log) => {
+      // An old comment is done once it got a DM earlier or a public reply was
+      // attempted at all (sent, uncertain, or refused by Instagram).
+      if (oldBefore) {
+        return log.status === "SENT" || Boolean(log.publicReplySentAt) ||
+          log.publicReplyDeliveryUnconfirmed || Boolean(log.publicReplyError);
+      }
       const dmStopped = log.status === "SENT" || log.status === "SKIPPED_PLAN_LIMIT" ||
         log.dmDeliveryUnconfirmed || log.attempts >= MAX_COMMENT_SEND_ATTEMPTS ||
         (log.status === "FAILED" && hasLegacyUnconfirmedDelivery(log.errorMessage));
@@ -279,7 +343,7 @@ async function sweepCampaign({
     const fresh = needsAction
       .filter((c) => !handledSet.has(c.id))
       .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
-      .slice(0, MAX_NEW_PER_SWEEP);
+      .slice(0, oldBefore ? Math.max(0, oldBefore.maxPerSweep - stat.enqueued) : MAX_NEW_PER_SWEEP);
 
     for (const c of fresh) {
       // No deterministic jobId here: a retained completed/failed job from an
@@ -287,7 +351,7 @@ async function sweepCampaign({
       // drop this add, so the comment would never be retried. Dedup is handled
       // above and by the worker's atomic, durable per-leg claims. Send attempts
       // are counted in DmLog across jobs, so a sweep cannot reset the budget.
-      await queue.add("process-comment", {
+      const job = {
         instagramAccountId: account.instagramId,
         accountConnectionId: account.id,
         commentId: c.id,
@@ -303,8 +367,17 @@ async function sweepCampaign({
           sourcePost.has(mediaId) && sourcePost.get(mediaId) !== mediaId
             ? sourcePost.get(mediaId)
             : undefined,
-        source: "POLLING",
-      });
+        source: "POLLING" as const,
+      };
+      if (oldBefore) {
+        await queue.add(
+          "process-comment",
+          { ...job, publicOnly: true },
+          { delay: stat.enqueued * oldBefore.spacingMs }
+        );
+      } else {
+        await queue.add("process-comment", job);
+      }
       stat.enqueued += 1;
     }
   }
